@@ -1,0 +1,2 @@
+# notion_push.py 가 사용. collect.py·kakaocli_read.py 는 표준 라이브러리만 씁니다.
+requests>=2.28

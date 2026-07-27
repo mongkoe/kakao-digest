@@ -1,0 +1,76 @@
+diff --git a/Sources/KakaoCore/Database/DeviceInfo.swift b/Sources/KakaoCore/Database/DeviceInfo.swift
+index 4d5a29e..a3fe661 100644
+--- a/Sources/KakaoCore/Database/DeviceInfo.swift
++++ b/Sources/KakaoCore/Database/DeviceInfo.swift
+@@ -192,36 +192,54 @@ public enum DeviceInfo {
+     }
+ 
+     /// Recover a userId by brute-forcing the SHA-512 pre-image.
+-    /// KakaoTalk stores SHA-512(userId) as hex in plist keys. Since userIds are
+-    /// typically small integers, this is fast (< 1 second for IDs under 1M).
+-    /// Searches up to 1 billion with a 10-second timeout.
++    /// KakaoTalk stores SHA-512(userId) as hex in plist keys.
++    /// Newer (App Store) accounts have large userIds, so this searches a wide
++    /// range across all CPU cores. Range and timeout are configurable via env
++    /// (no rebuild needed to widen the search):
++    ///   KAKAOCLI_BRUTE_MAX      upper bound, exclusive (default 20_000_000_000)
++    ///   KAKAOCLI_BRUTE_TIMEOUT  seconds; 0 = unlimited (default 0)
+     public static func recoverUserIdFromSHA512(hexHash: String) -> Int? {
+         guard hexHash.count == 128 else { return nil }
+         // Parse target hash to bytes
+         var targetBytes = [UInt8](repeating: 0, count: 64)
+-        var hexChars = Array(hexHash)
++        let hexChars = Array(hexHash)
+         for i in 0..<64 {
+             guard let byte = UInt8(String(hexChars[i*2...i*2+1]), radix: 16) else { return nil }
+             targetBytes[i] = byte
+         }
+ 
++        let env = ProcessInfo.processInfo.environment
++        let maxId = env["KAKAOCLI_BRUTE_MAX"].flatMap { Int($0) } ?? 20_000_000_000
++        let timeout = env["KAKAOCLI_BRUTE_TIMEOUT"].flatMap { Double($0) } ?? 0
++        let workers = max(1, ProcessInfo.processInfo.activeProcessorCount)
++
+         let startTime = CFAbsoluteTimeGetCurrent()
+-        let maxId = 1_000_000_000
+-        var hash = [UInt8](repeating: 0, count: Int(CC_SHA512_DIGEST_LENGTH))
++        let lock = NSLock()
++        var found: Int? = nil
+ 
+-        for i in 0..<maxId {
+-            let s = String(i)
+-            let data = Array(s.utf8)
+-            CC_SHA512(data, CC_LONG(data.count), &hash)
+-            if hash == targetBytes {
+-                return i
+-            }
+-            // Timeout after 10 seconds
+-            if i % 5_000_000 == 0 && i > 0 {
+-                if CFAbsoluteTimeGetCurrent() - startTime > 10 { return nil }
++        DispatchQueue.concurrentPerform(iterations: workers) { w in
++            var hash = [UInt8](repeating: 0, count: Int(CC_SHA512_DIGEST_LENGTH))
++            var i = w
++            var checkCounter = 0
++            while i < maxId {
++                let s = String(i)
++                let data = Array(s.utf8)
++                CC_SHA512(data, CC_LONG(data.count), &hash)
++                if hash == targetBytes {
++                    lock.lock(); found = i; lock.unlock()
++                    return
++                }
++                checkCounter += 1
++                if checkCounter >= 2_000_000 {
++                    checkCounter = 0
++                    lock.lock(); let done = found != nil; lock.unlock()
++                    if done { return }
++                    if timeout > 0 && CFAbsoluteTimeGetCurrent() - startTime > timeout { return }
++                }
++                i += workers
+             }
+         }
+-        return nil
++        return found
+     }
+ 
+     private static func longestCommonSuffix(_ strings: [String]) -> String? {

@@ -1,0 +1,4 @@
+{
+  "_default": { "mask": true },
+  "공개방예시": { "mask": false }
+}

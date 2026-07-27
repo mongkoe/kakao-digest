@@ -1,0 +1,17 @@
+# 비밀·실데이터 — 절대 커밋 금지
+.env
+daily/
+state/
+logs/
+
+# 실제 설정(방 이름 등 개인정보) — .example 견본만 공개
+config/targets.txt
+config/rooms.json
+
+# 직접 빌드하는 것(patch로 재현하므로 저장소엔 안 넣음)
+kakaocli-rebuild/
+
+# 파이썬·환경
+.venv/
+__pycache__/
+*.pyc
