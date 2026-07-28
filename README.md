@@ -62,4 +62,4 @@
 - 카톡 Mac DB 복호화 연구: [blluv](https://gist.github.com/blluv/8418e3ef4f4aa86004657ea524f2de14)
 
 ## 라이선스
-MIT — [LICENSE](LICENSE) 참조. (공개 전 LICENSE의 저작자 이름을 채우세요.)
+MIT — [LICENSE](LICENSE) 참조.
