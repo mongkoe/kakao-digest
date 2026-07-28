@@ -15,3 +15,6 @@ kakaocli-rebuild/
 .venv/
 __pycache__/
 *.pyc
+
+# macOS Finder 잔재(폴더 안 항목 이름이 담기므로 공개 금지)
+.DS_Store
